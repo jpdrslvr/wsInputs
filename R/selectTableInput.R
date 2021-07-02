@@ -101,21 +101,21 @@ checkbox <- function(type, id, checked = FALSE) {
   return(tag)
 }
 
-library(shiny)
+#library(shiny)
 
-ui <- fluidPage(
-  selectTableInput("table", content = head(iris), multiple = TRUE, actionLink = NULL, maxRows = 10)
-)
+#ui <- fluidPage(
+#  selectTableInput("table", content = head(iris), multiple = TRUE, actionLink = NULL, maxRows = 10)
+#)
 
-server <- function(input, output, session) {
-  observeEvent(input$table, {
-    print(input$table)
-  })
+#server <- function(input, output, session) {
+#  observeEvent(input$table, {
+#    print(input$table)
+#  })
 
-  observeEvent(input$tableLink, {
+#  observeEvent(input$tableLink, {
 
-  })
-}
+#  })
+#}
 
-shinyApp(ui, server)
+#shinyApp(ui, server)
 
