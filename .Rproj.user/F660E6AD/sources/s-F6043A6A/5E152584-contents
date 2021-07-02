@@ -1,0 +1,43 @@
+library(shiny)
+library(DT)
+
+data_fake <- sapply(LETTERS[1:10], function(l) {
+  data.frame(a = runif(5), b = runif(5))
+}, USE.NAMES = TRUE, simplify = FALSE)
+
+ui <- fluidPage(
+  fileInput(
+    inputId = "file",
+    label = "file input",
+
+  ),
+  DT::dataTableOutput("tabela")
+)
+
+server <- function(input, output, session) {
+
+  # isso se comporta como uma lista
+  # acessa os membros (data) com $
+  # ex: vals$data
+  vals <- reactiveValues(
+    data = NULL
+  )
+
+  output$tabela <- renderDataTable({
+    req(input$file)
+
+    # não precisa do observeEvent nesse caso
+    # toda vez que entrar com um arquivo novo
+    # a tabela vai ser atualizada
+    data <- read.csv(input$file$datapath)
+
+    datatable(
+      data,
+      options = list(
+        paging = FALSE
+      )
+    )
+  })
+}
+
+shinyApp(ui, server)

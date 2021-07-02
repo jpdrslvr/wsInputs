@@ -1,0 +1,125 @@
+/* SELECT TABLE INPUT */
+.select-table-input { overflow: auto; }
+
+.select-table-input table {
+  font-family: Arial, Helvetica, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+  text-align: center;
+  table-layout: auto;
+}
+
+/* primeira coluna */
+.select-table-input tr th:first-child,
+.select-table-input tr td:first-child {
+  width: 2em;
+  min-width: 2em;
+  max-width: 2em;
+}
+
+.select-table-input input {
+  opacity: 0;
+}
+
+
+.select-table-input td, .select-table-input th {
+  border-width: 1px 0 1px 0;
+  border-style: solid;
+  border-color: #ddd;
+  padding: 8px;
+}
+
+.select-table-input tr:nth-child(even){background-color: #f2f2f2;}
+
+.select-table-input tr:hover {
+  background-color: #ddd;
+}
+
+.select-table-input tr:hover input {
+  opacity: 1;
+}
+
+.select-table-input th, .select-table-input thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  text-align: center;
+  background-color: #181f23;
+  color: white;
+}
+
+.select-table-input th:first-child {
+  border-radius: 4px 0 0 5px;
+}
+
+.select-table-input th:last-child {
+  border-radius: 0 5px 4px 0;
+}
+
+.select-table-input .selected td{
+  font-weight: 900;
+}
+
+.select-table-input .selected a {
+  font-weight: 400;
+}
+
+.select-table-input .selected input {
+  opacity: 1;
+}
+
+/* SELECT FILE INPUT */
+
+.select-file-input {
+  font-family: Arial, Helvetica, sans-serif;
+  border-collapse: collapse;
+  border-top: 5px solid transparent;
+}
+
+.close-button {
+  float: right;
+  font-weight: 700;
+  line-height: 1;
+  filter: alpha(opacity=20);
+  opacity: .2;
+  background: 0 0;
+  border: 0;
+  pointer: cursor;
+  padding: 5px;
+  margin-right: 5px;
+}
+
+.close-button:hover {
+  opacity: .7;
+  color: red;
+}
+
+.file-row {
+  font-size: 1em;
+  display: block;
+  color: white;
+  margin: 0 2px 0 5px;
+}
+
+.file-name {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 75%;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 1.5px;
+}
+
+.file-name:hover {
+  background-color: #636363;
+}
+
+.file-name.selected {
+  background: #f4f4f4;
+  color: #222d32;
+  font-weight: 900;
+}

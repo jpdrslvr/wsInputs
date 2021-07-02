@@ -1,0 +1,431 @@
+require(dplyr)
+require(DT)
+require(glue)
+require(openxlsx)
+require(pdftools)
+require(plotly)
+require(shiny)
+require(shinyalert)
+require(shinyBS)
+require(shinydashboard)
+require(shinydashboardPlus)
+require(shinyjs)
+require(shinyWidgets)
+require(stringr)
+require(tesseract)
+
+dir <- setwd("C:/Users/marcelle.vargas/Downloads/CLAM_metais_basicos")
+
+source(file = 'func_geosol.R', encoding = 'UTF-8')
+source(file = 'func_limnos.R', encoding = 'UTF-8')
+
+source(file = 'func_agua_sup.R', encoding = 'UTF-8')
+source(file = 'func_agua_sub.R', encoding = 'UTF-8')
+source(file = 'func_eflu.R', encoding = 'UTF-8')
+
+source(file = 'func_plot_par.R', encoding = 'UTF-8')
+source(file = 'func_table_options.R', encoding = 'UTF-8')
+
+ui <- dashboardPage(
+  skin = "black",
+  dashboardHeader(
+    title = "Laudos"
+  ),
+
+  dashboardSidebar(
+    sidebarMenu(
+
+      menuItem(
+
+        text = "Dados",
+        tabName = "aux",
+        icon = icon("chart-bar"),
+
+        radioButtons(
+          inputId = "process",
+          label = "Processamento",
+          choices = list("Laudo + BD" = 1, "Banco de dados" = 2, "Alimentar" = 3),
+          selected = 0
+        ),
+
+        radioButtons(
+          inputId = "lab",
+          label = "Laboratório",
+          choices = list("GEOSOL" = 1, "LIMNOS" = 2),
+          selected = 0
+        ),
+
+        div(style = "margin-top: -10px"),
+
+        radioButtons(
+          inputId = "matriz",
+          label = "Matriz",
+          choices = list("Água Superficial" = 1, "Água Subterrânea" = 2, "Efluente" = 3),
+          selected = 0
+        ),
+
+        div(style = "margin-top: -10px"),
+
+        fileInput(inputId = "arq_lab", label = "Uploud do laudo (*.pdf)",
+                  multiple = FALSE,
+                  accept = c(".pdf")
+        ),
+
+        div(style = "margin-top: -30px"),
+
+        fileInput(inputId = "arq_aux", label = "VMP (*.xlsx)",
+                  multiple = FALSE,
+                  accept = c(".xlsx")
+        ),
+
+        div(style = "margin-top: -30px"),
+
+        fileInput(inputId = "arqBD", label = "Banco de dados (*.xlsx)",
+                  multiple = FALSE,
+                  accept = c(".xlsx")
+        )
+
+      ),
+
+      menuItem(
+        text = "Resultados",
+        tabName = "res",
+        icon = icon("table")
+      ),
+
+      menuItem(
+        text = "Sobre",
+        tabName = "about",
+        icon = icon("question-circle")
+      )
+    )
+  ),
+
+  dashboardBody(
+
+    useShinyjs(),
+    useShinyalert(),
+
+    tabItems(
+
+      tabItem(
+        tabName = "res",
+
+        tabBox(
+
+          height = "auto",
+          width = "auto",
+
+          tabPanel(
+            title = "Laudo",
+            DT::dataTableOutput(outputId = "lab_output"),
+            style = "height:500px; overflow-y: scroll;overflow-x: scroll;",
+
+            downloadButton(outputId = "downloadLAUDO",
+                           label = "Download")
+          ),
+
+          tabPanel(
+            title = "Banco de dados",
+
+            DT::dataTableOutput(outputId = "BD_output"),
+            style = "height:500px; overflow-y: scroll;overflow-x: scroll;",
+
+            downloadButton(outputId = "downloadBD",
+                           label = "Download")
+          ),
+
+          tabPanel(
+            title = "Gráficos",
+
+            selectInput(inputId = "par",
+                        label = "Parâmetro",
+                        choices = NULL,
+                        selected = NULL
+            ),
+
+            plotlyOutput("plot_parametro"),
+            style = "height:500px; overflow-y: scroll;overflow-x: scroll;"
+
+          )
+        )
+      ),
+
+
+      tabItem(
+        tabName = "about",
+        tags$style(type="text/css", "#text_about {text-align:center; padding-left: 15%; padding-right:15%}"),
+        uiOutput("aboutPageContent")
+      )
+    )
+  )
+)
+
+server <- function(input, output, session) {
+
+  matrizEvent <- reactive({
+
+    req(input$arq_lab)
+    req(input$arq_aux)
+
+
+    withProgress(message = "Carregando laudo", value = 1, {
+
+      func_matriz <- switch(
+        input$matriz,
+        "1" = func_agua_sup,
+        "2" = func_agua_sub,
+        "3" = func_eflu
+      )
+
+      func_lab <- switch(
+        input$lab,
+        "1" = func_geosol,
+        "2" = func_limnos
+      )
+
+
+
+
+      if (input$matriz == 1 && input$lab == 1) {
+
+        plan_aux     <- as.matrix(read.xlsx(xlsxFile = input$arq_aux$datapath, sheet = 1))
+        lab_result   <- func_geosol(input$arq_lab$datapath, plan_aux)
+
+        if (lab_result == "Ponto não amostrado") {
+
+          shinyalert(text = "Ponto não amostrado", type = "error")
+          matrizEvent <- data.frame(x = rep(NA, 10))
+          matrizEvent <- unname(matrizEvent)
+
+
+        } else
+
+          matrizEvent  <- func_agua_sup(lab_result)
+
+      }
+
+      else if (input$matriz == 2 & input$lab == 1) {
+
+        plan_aux     <- as.matrix(read.xlsx(xlsxFile = input$arq_aux$datapath, sheet = 2))
+        lab_result   <- func_geosol(input$arq_lab$datapath, plan_aux)
+        matrizEvent  <- func_agua_sub(lab_result)
+
+      }
+
+      else if (input$matriz == 3 & input$lab == 1) {
+
+        lan_aux      <- as.matrix(read.xlsx(xlsxFile = input$arq_aux$datapath, sheet = 3))
+        lab_result   <- func_geosol(input$arq_lab$datapath, plan_aux)
+        matrizEvent  <- func_eflu(lab_result)
+
+      }
+
+      else if (input$matriz == 1 & input$lab == 2) {
+
+        plan_aux     <- as.matrix(read.xlsx(xlsxFile = input$arq_aux$datapath, sheet = 4))
+        lab_result   <- func_limnos(input$arq_lab$datapath, plan_aux)
+        matrizEvent  <- func_agua_sup(lab_result)
+
+      }
+
+      else if (input$matriz == 2 & input$lab == 2) {
+
+        plan_aux     <- as.matrix(read.xlsx(xlsxFile = input$arq_aux$datapath, sheet = 5))
+        lab_result   <- func_limnos(input$arq_lab$datapath, plan_aux)
+        matrizEvent  <- func_agua_sub(lab_result)
+
+      }
+
+      else if (input$matriz == 3 & input$lab == 2) {
+
+        lan_aux      <- as.matrix(read.xlsx(xlsxFile = input$arq_aux$datapath, sheet = 6))
+        lab_result   <- func_limnos(input$arq_lab$datapath, plan_aux)
+
+        if (lab_result == "Ponto sem vertimento") {
+
+          shinyalert(text = "Ponto sem vertimento", type = "error")
+          matrizEvent <- data.frame(x = rep(NA, 10))
+          matrizEvent <- unname(matrizEvent)
+
+        }
+
+
+        else
+
+          matrizEvent  <- func_eflu(lab_result)
+
+      }
+
+    })
+
+
+
+  })
+
+  observeEvent(input$process,{
+
+    if (input$process == 1) {}
+
+    else if (input$process == 2) {
+
+      shinyjs::toggleState(id = "lab")
+      shinyjs::toggleState(id = "matriz")
+
+    }
+  })
+
+  # isso continua igual
+  dadosBD_atual <- reactive({
+
+    req(input$arq_lab)
+    req(input$arq_aux)
+    req(input$arqBD)
+    req(input$process)
+
+    if (input$process == 1) {
+
+      dadosBD <- as.matrix(read.xlsx(xlsxFile = input$arqBD$datapath, sheet = 1))
+      matriz1 <- as.matrix(dadosBD)
+      matriz2 <- as.matrix(matrizEvent())
+
+      for (i in 1:nrow(matriz1)) {
+
+        if (matriz1[i,15] == "-") {}
+
+        else {
+
+          matriz1[i,15] <- format(x = as.numeric(noquote(matriz1[i,15])), decimal.mark = ',')
+          matriz1[i,17] <- format(x = as.numeric(noquote(matriz1[i,17])), decimal.mark = ',')
+        }
+      }
+
+      # muda o nome disso, por exemplo
+      # no fim tu retorna "dados"
+      dados <- as.data.frame(rbind(matriz1, matriz2))
+      # dadosBD_atual <- as.data.frame(rbind(matriz1, matriz2))
+
+      updateSelectInput(session, inputId = "par", label = NULL,
+                        choices = dadosBD_atual$Parâmetro)
+
+    }
+
+    else if (input$process == 2) {
+
+      dadosBD       <- as.matrix(read.xlsx(xlsxFile = input$arqBD$datapath, sheet = 1))
+      dadosBD_atual <- as.data.frame(dadosBD)
+
+      updateSelectInput(session, inputId = "par", label = NULL,
+                        choices = dadosBD_atual$Parâmetro)
+
+    }
+
+    dadosBD_atual
+
+  })
+
+  output$lab_output <- renderDataTable({
+
+    DT::datatable(data = matrizEvent(),
+                  rownames = FALSE,
+                  editable = TRUE,
+                  class = 'cell-border',
+                  escape = FALSE,
+                  options = func_table_options(),
+                  extensions = 'Buttons')  %>%
+      formatStyle(
+        columns = c(1:18),
+        target = 'row',
+        backgroundColor = styleEqual(levels = "Não conforme", values = "yellow")
+      )
+
+  })
+
+  output$BD_output <- renderDataTable({
+
+    if (input$process == 3) {
+
+      DT::datatable(data = rbind(dadosBD_atual(), matrizEvent()),
+                    rownames = FALSE,
+                    editable = TRUE,
+                    class = 'cell-border',
+                    escape = FALSE,
+                    options = func_table_options(),
+                    extensions = 'Buttons') %>%
+        formatStyle(
+          columns = c(1:18),
+          target = 'row',
+          backgroundColor = styleEqual(levels = "Não conforme", values = "yellow")
+        )
+
+    }
+
+    else {
+
+    DT::datatable(data = dadosBD_atual(),
+                  rownames = FALSE,
+                  editable = TRUE,
+                  class = 'cell-border',
+                  escape = FALSE,
+                  options = func_table_options(),
+                  extensions = 'Buttons') %>%
+      formatStyle(
+        columns = c(1:18),
+        target = 'row',
+        backgroundColor = styleEqual(levels = "Não conforme", values = "yellow")
+      )
+    }
+  })
+
+  output$downloadLAUDO <- downloadHandler(
+    filename = function() {
+      paste("laudo", ".xlsx", sep = "")
+    },
+    content = function(file) {
+      write.xlsx(matrizEvent(), file, row.names = FALSE, col.names = TRUE)
+    }
+  )
+
+  output$downloadBD <- downloadHandler(
+    filename = function() {
+      paste("banco_dados", ".xlsx", sep = "")
+    },
+    content = function(file) {
+      write.xlsx(dadosBD_atual(), file, row.names = FALSE, col.names = TRUE)
+    }
+  )
+
+  output$plot_parametro <- renderPlotly({
+
+    req(input$par)
+
+    func_plot_par(banco_dados = dadosBD_atual(), parametro = input$par)
+
+  })
+
+  output$aboutPageContent <- renderUI({
+
+    tags$div(
+      id = "text_about",
+      tags$h2(tags$b(
+        "Laudos"
+      )),
+      tags$br(),
+      tags$h3(tags$b("Desenvolvedores")),
+      tags$h4("CLAM ENGENHARIA HIDROCNESE LTDA."),
+      tags$br(),
+      tags$h3(tags$b("versão")),
+      tags$h4("1.0 (beta)"),
+      tags$br(),
+      tags$h3(tags$b("Mais informações")),
+      tags$h4(
+        tags$a("Marcos Souza Chaim (marcos.chaim@clam.com.br)"),
+        tags$br(),
+        tags$a("Marcelle Martins Vargas (marcelle.vargas@clam.com.br)")
+      )
+    )
+  })
+
+}
+
+shinyApp(ui, server)
